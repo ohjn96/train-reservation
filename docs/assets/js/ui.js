@@ -1,7 +1,15 @@
 // 페이지들이 함께 쓰는 조각.
-import { ISSUES_URL, REPO_URL } from './config.js';
+import { ISSUES_URL, REPO_URL } from './config.js?v=ed14db29';
 
-export const $ = (id) => document.getElementById(id);
+export function $(id) {
+  const el = document.getElementById(id);
+  if (!el) {
+    // 대개 브라우저가 옛 js 를 캐시한 채 새 HTML 을 받은 경우다.
+    throw new Error(`화면 요소 '${id}' 를 찾지 못했습니다. ` +
+                    '강력 새로고침(Ctrl+Shift+R) 후 다시 시도해주세요.');
+  }
+  return el;
+}
 
 /** 문자열을 HTML 에 넣기 전 반드시 통과. */
 export function esc(value) {

@@ -240,50 +240,5 @@ class ModelJsTest(unittest.TestCase):
         self.assertIn('꺼짐', view['text'])
 
 
-@unittest.skipUnless(dukpy, 'dukpy 가 설치돼 있지 않아 건너뜁니다')
-class ModelMatchesPythonTest(unittest.TestCase):
-    """JS 의 자동 갱신 규칙이 Actions 쪽 파이썬 구현과 같은 답을 내는지.
-
-    두 구현이 어긋나면 대시보드에 '자동 갱신됨'으로 보이는데 실제로는 안 되는
-    상황이 생긴다.
-    """
-
-    @classmethod
-    def setUpClass(cls):
-        cls.bundle = build_bundle()
-        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'scripts'))
-
-    def assert_same(self, settings, machine_id):
-        from license_admin import autorenew_days_for
-
-        js = dukpy.evaljs(
-            f'{self.bundle}\n'
-            f'var s = {json.dumps(settings, ensure_ascii=False)};\n'
-            f'autoRenewDays({json.dumps(machine_id)}, s)')
-        py = autorenew_days_for(machine_id, dict(settings))
-        self.assertEqual(js, py, f'{machine_id} / {settings}')
-
-    def test_rules_agree(self):
-        cases = [
-            ({'all': False, 'default_days': 30, 'machines': {}}, 'AAAA-0000-0000-0001'),
-            ({'all': True, 'default_days': 30, 'machines': {}}, 'AAAA-0000-0000-0001'),
-            ({'all': True, 'default_days': 30,
-              'machines': {'AAAA-0000-0000-0001': {'off': True}}}, 'AAAA-0000-0000-0001'),
-            ({'all': False, 'default_days': 30,
-              'machines': {'AAAA-0000-0000-0001': {'days': 7}}}, 'AAAA-0000-0000-0001'),
-            ({'all': False, 'default_days': 14,
-              'machines': {'AAAA-0000-0000-0001': {}}}, 'AAAA-0000-0000-0001'),
-            ({'all': False, 'default_days': 30,
-              'machines': {'AAAA-0000-0000-0001': {'days': 30, 'until': '2000-01-01'}}},
-             'AAAA-0000-0000-0001'),
-            ({'all': False, 'default_days': 30,
-              'machines': {'AAAA-0000-0000-0001': {'days': 30, 'until': '2999-01-01'}}},
-             'AAAA-0000-0000-0001'),
-        ]
-        for settings, machine_id in cases:
-            with self.subTest(settings=settings):
-                self.assert_same(settings, machine_id)
-
-
 if __name__ == '__main__':
     unittest.main()

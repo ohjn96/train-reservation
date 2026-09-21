@@ -42,15 +42,19 @@ Python 설치가 필요 없고 브라우저가 자동으로 열립니다.
 
 ## 이 저장소에 들어있는 것
 
+**결과물과 현황판뿐입니다.** 발급 판단과 서명은 비공개 저장소에서 합니다.
+
 | | |
 |---|---|
 | `licenses/` | 발급된 라이선스. 머신에 묶여 있어 공개돼도 남이 쓸 수 없습니다 |
-| `license-policy.json` | 라이선스 검사 ON/OFF 스위치 (서명됨) |
+| `license-policy.json` | 검사 ON/OFF 스위치 (서명됨) |
 | `revoked.json` | 철회 목록 (서명됨) |
-| `docs/` | 현황판 (GitHub Pages) |
-| `scripts/`, `.github/` | 발급 자동화 |
+| `docs/` | 현황판 (GitHub Pages) — 읽기 전용, 조작 기능 없음 |
+| `.github/workflows/relay.yml` | 요청 이슈를 비공개 저장소로 넘기는 중계기 |
 
-발급자용 운영 문서는 [docs/LICENSING.md](docs/LICENSING.md) 에 있습니다.
+앱이 자격증명 없이 받아가야 하므로 위 세 파일은 공개일 수밖에 없습니다.
+서명되어 있어 위조할 수 없고, 라이선스는 머신에 묶여 있어 남이 가져가도
+쓸 수 없습니다.
 
 ## 예약 성공 후
 

@@ -1,0 +1,74 @@
+name: 라이선스 요청 중계
+
+# 이 저장소에는 결과물과 현황판만 둔다. 판단·서명·발급은 전부 비공개 저장소에서 한다.
+# 여기서 하는 일은 하나뿐 — 요청 이슈와 명령 댓글을 비공개 저장소로 넘긴다.
+#
+# 필요한 시크릿:
+#   RELAY_TOKEN  비공개 저장소에 contents:write 권한이 있는 fine-grained PAT
+#                (repository_dispatch 를 보내는 데 필요)
+#
+# 남이 쓴 내용은 그대로 넘기기만 하고, 권한 판정과 명령 해석은 저쪽에서 다시 한다.
+on:
+  issue_comment:
+    types: [created]
+  issues:
+    types: [opened]
+
+permissions:
+  issues: read
+
+concurrency:
+  group: relay-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  forward:
+    # 넘길 가치가 있는 것만 넘긴다. 최종 권한 확인은 비공개 쪽에서 한 번 더 한다.
+    if: >
+      github.event.issue.pull_request == null && (
+        (github.event_name == 'issue_comment' &&
+         github.event.comment.user.login == github.repository_owner &&
+         (startsWith(github.event.comment.body, '/approve') ||
+          startsWith(github.event.comment.body, '/autorenew') ||
+          startsWith(github.event.comment.body, '/deny') ||
+          startsWith(github.event.comment.body, '/revoke') ||
+          startsWith(github.event.comment.body, '/policy')))
+        ||
+        (github.event_name == 'issues' &&
+         contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'),
+                  github.event.issue.author_association))
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - name: 비공개 저장소로 넘기기
+        env:
+          GH_TOKEN: ${{ secrets.RELAY_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          AUTHOR_ASSOCIATION: ${{ github.event.issue.author_association }}
+          REQUESTER: ${{ github.event.issue.user.login }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::RELAY_TOKEN 시크릿이 없어 요청을 넘기지 못했습니다."
+            exit 1
+          fi
+          # 사용자가 쓴 문자열은 jq 로 안전하게 JSON 에 싣는다
+          jq -n \
+            --arg event_name      "$EVENT_NAME" \
+            --arg issue_number    "$ISSUE_NUMBER" \
+            --arg issue_body      "$ISSUE_BODY" \
+            --arg comment_body    "$COMMENT_BODY" \
+            --arg author_association "$AUTHOR_ASSOCIATION" \
+            --arg requester       "$REQUESTER" \
+            '{event_type: "license", client_payload: {
+                event_name: $event_name,
+                issue_number: $issue_number,
+                issue_body: $issue_body,
+                comment_body: $comment_body,
+                author_association: $author_association,
+                requester: $requester}}' > payload.json
+
+          gh api repos/ohjn96/private_train/dispatches --input payload.json
+          echo "이슈 #$ISSUE_NUMBER 을(를) 넘겼습니다."

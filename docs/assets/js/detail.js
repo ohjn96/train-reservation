@@ -1,8 +1,8 @@
 // 상세 (detail.html?id=MACHINE-ID)
-import { loadAll } from './api.js';
-import { AUTORENEW_TRIGGER_DAYS, ISSUES_URL } from './config.js';
-import { describe } from './model.js';
-import { $, autoMark, esc, mountTopbar, showError, span, state } from './ui.js';
+import { loadAll } from './api.js?v=ed14db29';
+import { AUTORENEW_TRIGGER_DAYS, ISSUES_URL } from './config.js?v=ed14db29';
+import { describe } from './model.js?v=ed14db29';
+import { $, autoMark, esc, mountTopbar, showError, span, state } from './ui.js?v=ed14db29';
 
 mountTopbar('index.html');
 

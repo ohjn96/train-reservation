@@ -7,8 +7,16 @@ export const RAW_BASE = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BR
 export const REPO_URL = `https://github.com/${OWNER}/${REPO}`;
 export const ISSUES_URL = `${REPO_URL}/issues`;
 export const NEW_REQUEST_URL = `${REPO_URL}/issues/new?template=license-request.yml`;
-// 검사 ON/OFF 는 서명이 필요해 브라우저에서 못 한다. Actions 에서 클릭으로 바꾼다.
-export const POLICY_RUN_URL = `${REPO_URL}/actions/workflows/license-policy.yml`;
+// 조작은 전부 GitHub 에서 한다 — 이 페이지에는 키도 인증도 없다.
+// 검사 ON/OFF 워크플로는 비공개 저장소에 있다 (주인만 접근 가능).
+export const ADMIN_REPO = 'ohjn96/private_train';
+export const POLICY_RUN_URL =
+  `https://github.com/${ADMIN_REPO}/actions/workflows/license-policy.yml`;
+
+// 공개 저장소의 이슈는 인증 없이 읽힌다 (시간당 60회 제한)
+export const OPEN_REQUESTS_API =
+  `https://api.github.com/repos/${OWNER}/${REPO}/issues` +
+  '?state=open&labels=license-request&per_page=20';
 
 // 만료가 이 일수 이하로 남으면 '곧 만료'로 본다 (자동 갱신 임계값 3일보다 넉넉하게)
 export const SOON_DAYS = 7;

@@ -1,8 +1,8 @@
 // 현황 (index.html)
-import { loadAll } from './api.js';
-import { AUTORENEW_TRIGGER_DAYS, NEW_REQUEST_URL, POLICY_RUN_URL } from './config.js';
-import { describe, describePolicy, sortForDisplay, summarize } from './model.js';
-import { $, autoMark, esc, mountTopbar, showError, span, state } from './ui.js';
+import { loadAll, openRequests } from './api.js?v=ed14db29';
+import { AUTORENEW_TRIGGER_DAYS, NEW_REQUEST_URL, POLICY_RUN_URL } from './config.js?v=ed14db29';
+import { describe, describePolicy, sortForDisplay, summarize } from './model.js?v=ed14db29';
+import { $, autoMark, esc, mountTopbar, showError, span, state } from './ui.js?v=ed14db29';
 
 mountTopbar('index.html');
 
@@ -21,9 +21,25 @@ function renderPolicy(policy) {
     '<span class="mark"></span>',
     `<span>${shape.text}</span>`,
     view.seq === null ? '' : `<span style="color:var(--ink-3);font-size:12.5px">seq ${view.seq}</span>`,
-    `<a class="hint" href="${POLICY_RUN_URL}" target="_blank" rel="noopener noreferrer">바꾸기 →</a>`,
+    `<a class="hint" href="${POLICY_RUN_URL}" target="_blank" rel="noopener noreferrer">Actions 에서 바꾸기 →</a>`,
     view.message ? `<span class="say">${esc(view.message)}</span>` : '',
   ].join('');
+}
+
+function renderRequests(list) {
+  const box = $('requests');
+  if (!list.length) { box.hidden = true; return; }
+
+  box.hidden = false;
+  box.innerHTML = `
+    <h2>대기 중인 요청 <span style="color:var(--warn)">${list.length}</span></h2>
+    <p class="lede">이슈를 열고 <code>/approve 30</code> 댓글. 휴대폰 GitHub 앱에서도 됨.</p>
+    <ul class="queue">${list.map((r) => `
+      <li><a href="${r.url}" target="_blank" rel="noopener noreferrer">
+        <span class="no">#${r.number}</span>
+        <span class="what">${esc(r.title)}</span>
+        <span class="who">${esc(r.who)}</span>
+      </a></li>`).join('')}</ul>`;
 }
 
 function renderTally(c) {
@@ -80,10 +96,11 @@ export async function refresh() {
   btn.disabled = true;
 
   try {
-    const data = await loadAll();
+    const [data, requests] = await Promise.all([loadAll(), openRequests()]);
     const rows = data.licenses.map((item) =>
       describe(item, { revoked: data.revoked, autorenew: data.autorenew }));
 
+    renderRequests(requests);
     renderPolicy(data.policy);
     renderRows(rows);
     renderTally(summarize(rows));

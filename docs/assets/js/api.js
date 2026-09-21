@@ -2,7 +2,7 @@
 //
 // raw.githubusercontent.com 은 CDN 캐시(약 5분)가 걸려 있어서, 방금 푸시한 내용이
 // 바로 안 보일 수 있다. 쿼리스트링과 no-store 로 최대한 우회하지만 완벽하지는 않다.
-import { RAW_BASE } from './config.js';
+import { OPEN_REQUESTS_API, RAW_BASE } from './config.js?v=ed14db29';
 
 async function getJSON(path) {
   try {
@@ -13,6 +13,28 @@ async function getJSON(path) {
   } catch (err) {
     if (err instanceof SyntaxError) throw new Error('JSON 형식이 올바르지 않습니다.');
     throw err;
+  }
+}
+
+/** 대기 중인 요청 이슈. 실패하면 빈 목록 — 현황 표시가 막히면 안 된다. */
+export async function openRequests() {
+  try {
+    const res = await fetch(OPEN_REQUESTS_API, {
+      cache: 'no-store',
+      headers: { Accept: 'application/vnd.github+json' },
+    });
+    if (!res.ok) return [];
+    const issues = await res.json();
+    return (Array.isArray(issues) ? issues : [])
+      .filter((issue) => !issue.pull_request)
+      .map((issue) => ({
+        number: issue.number,
+        title: issue.title,
+        url: issue.html_url,
+        who: issue.user?.login ?? '',
+      }));
+  } catch {
+    return [];
   }
 }
 

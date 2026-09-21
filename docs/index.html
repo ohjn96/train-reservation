@@ -19,6 +19,8 @@
   </div>
 
   <div id="policy" class="statusline"><span class="mark"></span><span>정책 확인 중</span></div>
+
+  <section id="requests" hidden></section>
   <div id="tally" class="tally">집계 중</div>
 
   <table id="roster" hidden>
@@ -38,13 +40,14 @@
 
   <p class="foot">
     <span id="autoNote"></span><br>
-    공개 저장소의 파일을 읽어 그림. <b>누구나 볼 수 있는 페이지.</b><br>
-    발급·연장·철회는 요청함에서 <code>/approve 30</code> 같은 댓글로.<br>
+    읽기 전용 화면. 조작 기능 없음 — 발급·연장·철회는 GitHub 에서, 주인만.<br>
+    공개 저장소의 파일을 읽어 그리므로 <b>주소를 아는 사람은 볼 수 있음</b>
+    (내용은 그 파일에 이미 공개돼 있는 것).<br>
     <span class="stamp">확인 <span id="updated">—</span></span>
   </p>
 
 </main>
 
-<script type="module" src="assets/js/dashboard.js"></script>
+<script type="module" src="assets/js/dashboard.js?v=ed14db29"></script>
 </body>
 </html>

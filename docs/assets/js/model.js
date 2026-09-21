@@ -1,5 +1,5 @@
 // 순수 계산만 한다 — DOM 도 fetch 도 여기 없다.
-import { SOON_DAYS, AUTORENEW_TRIGGER_DAYS } from './config.js';
+import { SOON_DAYS, AUTORENEW_TRIGGER_DAYS } from './config.js?v=ed14db29';
 
 export const STATUS = {
   VALID: 'valid',
