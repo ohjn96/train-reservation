@@ -1,43 +1,36 @@
-// 페이지들이 공유하는 DOM 조각들.
+// 페이지들이 함께 쓰는 조각.
 import { ISSUES_URL, REPO_URL } from './config.js';
 
 export const $ = (id) => document.getElementById(id);
 
-/** 텍스트를 HTML 에 넣기 전에 항상 통과시킨다. */
+/** 문자열을 HTML 에 넣기 전 반드시 통과. */
 export function esc(value) {
   return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   }[ch]));
 }
 
-/** 상태 칩. 색만으로 읽히지 않도록 글자를 항상 함께 낸다. */
-export function chip(text, kind = 'off') {
-  return `<span class="chip ${kind}">${esc(text)}</span>`;
+const KIND = { valid: 'ok', soon: 'warn', expired: 'off', revoked: 'crit' };
+
+/** 상태 표시. 색만으로 읽히지 않도록 글자를 함께 낸다. */
+export function state(row) {
+  return `<span class="state ${KIND[row.status] ?? 'off'}">${esc(row.statusLabel)}</span>`;
 }
 
-const STATUS_KIND = { valid: 'ok', soon: 'warn', expired: 'off', revoked: 'crit' };
-
-export function statusChip(row) {
-  return chip(row.statusLabel, STATUS_KIND[row.status] ?? 'off');
-}
-
-export function autoRenewChip(row) {
+export function autoMark(row) {
   if (row.autoRenew === null) return '';
-  return chip(row.renewingSoon ? `곧 갱신 +${row.autoRenew}일` : `자동 ${row.autoRenew}일`, 'auto');
+  const text = row.renewingSoon ? `갱신 예정 +${row.autoRenew}일` : `자동 ${row.autoRenew}일`;
+  return ` <span class="auto">${esc(text)}</span>`;
 }
 
-/** 유효기간 레일 — 발급 기간 중 남은 비율을 형태로 보여준다. */
-export function validityRail(row) {
-  if (row.inactive || row.remaining === null) {
-    return '<div class="railbar is-dormant" style="--fill:100%"></div>';
-  }
+/** 유효기간 막대 — 발급 구간 중 남은 만큼. */
+export function span(row) {
+  if (row.inactive || row.remaining === null) return '<div class="span done"></div>';
   const pct = Math.max(2, Math.round(row.remaining * 100));
-  const kind = row.status === 'soon' ? ' is-warn' : '';
-  return `<div class="railbar${kind}" style="--fill:${pct}%"
+  return `<div class="span${row.status === 'soon' ? ' warn' : ''}" style="--left:${pct}%"
                role="img" aria-label="유효기간 ${pct}% 남음"></div>`;
 }
 
-/** 상단 바. 페이지마다 <body> 맨 앞에서 부른다. */
 export function mountTopbar(current) {
   const pages = [['index.html', '현황'], ['guide.html', '안내']];
   const links = pages.map(([href, label]) =>
@@ -46,19 +39,17 @@ export function mountTopbar(current) {
   document.body.insertAdjacentHTML('afterbegin', `
     <header class="topbar">
       <div class="wrap">
-        <a class="brand" href="index.html">라이선스 콘솔</a>
+        <a class="brand" href="index.html">KTX/SRT 예약 · 라이선스</a>
         <nav class="nav">
           ${links}
-          <a href="${ISSUES_URL}" target="_blank" rel="noopener noreferrer">요청함 ↗</a>
-          <a href="${REPO_URL}" target="_blank" rel="noopener noreferrer">저장소 ↗</a>
+          <a href="${ISSUES_URL}" target="_blank" rel="noopener noreferrer">요청함</a>
+          <a href="${REPO_URL}" target="_blank" rel="noopener noreferrer">저장소</a>
         </nav>
       </div>
     </header>`);
 }
 
 export function showError(container, err) {
-  container.innerHTML = `<div class="empty">
-    <h3>불러오지 못했습니다</h3>
-    <p>${esc(err.message)}</p>
-  </div>`;
+  container.innerHTML = `<div class="none">
+    <h3>불러오기 실패</h3><p>${esc(err.message)}</p></div>`;
 }

@@ -2,91 +2,85 @@
 import { loadAll } from './api.js';
 import { AUTORENEW_TRIGGER_DAYS, NEW_REQUEST_URL } from './config.js';
 import { describe, describePolicy, sortForDisplay, summarize } from './model.js';
-import { $, autoRenewChip, esc, mountTopbar, showError, statusChip, validityRail } from './ui.js';
+import { $, autoMark, esc, mountTopbar, showError, span, state } from './ui.js';
 
 mountTopbar('index.html');
 
-const POLICY_CLASS = { open: 'is-off', licensed: 'is-on', blocked: 'is-stop' };
+const POLICY = {
+  open:     { cls: '',        text: '검사 <b>꺼짐</b> · 누구나 사용 가능',
+              hint: 'license_admin.py policy --mode licensed' },
+  licensed: { cls: 'is-on',   text: '검사 <b>켜짐</b> · 허가된 PC 에서만 동작',
+              hint: 'license_admin.py policy --mode open' },
+  blocked:  { cls: 'is-stop', text: '<b>전면 차단</b> · 라이선스가 있어도 막힘',
+              hint: 'license_admin.py policy --mode open' },
+};
 
 function renderPolicy(policy) {
   const view = describePolicy(policy);
+  const shape = POLICY[view.mode] ?? POLICY.open;
   const box = $('policy');
-  box.className = `policy ${POLICY_CLASS[view.mode] ?? 'is-off'}`;
+  box.className = `statusline ${shape.cls}`;
   box.innerHTML = [
-    `<span>${view.text}</span>`,
-    view.seq === null ? '' : `<span class="seq">seq ${view.seq}</span>`,
-    view.message ? `<p class="note">${esc(view.message)}</p>` : '',
+    '<span class="mark"></span>',
+    `<span>${shape.text}</span>`,
+    view.seq === null ? '' : `<span style="color:var(--ink-3);font-size:12.5px">seq ${view.seq}</span>`,
+    `<span class="hint">${esc(shape.hint)}</span>`,
+    view.message ? `<span class="say">${esc(view.message)}</span>` : '',
   ].join('');
 }
 
-function renderStats(counts) {
-  $('statTotal').textContent = counts.total;
-  $('statValid').textContent = counts.valid;
-  $('statSoon').textContent = counts.soon;
-  $('statInactive').textContent = counts.inactive;
-  $('autoNote').textContent = counts.auto
-    ? `${counts.auto}건은 만료 ${AUTORENEW_TRIGGER_DAYS}일 전에 자동으로 연장됩니다.`
-    : '자동 갱신으로 설정된 라이선스는 없습니다.';
+function renderTally(c) {
+  const sep = '<span class="sep">·</span>';
+  const auto = c.auto
+    ? `${sep}자동 갱신 <b>${c.auto}</b>`
+    : '';
+  $('tally').innerHTML =
+    `전체 <b>${c.total}</b>${sep}유효 <b>${c.valid}</b>${sep}` +
+    `곧 만료 <b>${c.soon}</b>${sep}만료·철회 <b>${c.inactive}</b>${auto}`;
 }
 
-function emptyState() {
-  return `<div class="empty">
-    <h3>아직 발급된 라이선스가 없습니다</h3>
-    <p>사용자가 앱에서 요청하고 승인하면 이 자리에 나타납니다.</p>
-    <div class="flow">
-      <div>
-        <span class="n">1</span>
-        <span class="t">사용자가 요청</span>
-        <span class="d">앱의 [라이선스 요청하기] → 머신 ID 가 채워진 이슈가 열립니다.</span>
-      </div>
-      <div>
-        <span class="n">2</span>
-        <span class="t">승인</span>
-        <span class="d">알림 메일에 <code>/approve 30</code> 이라고 답장하면 끝입니다.</span>
-      </div>
-      <div>
-        <span class="n">3</span>
-        <span class="t">앱이 자동 활성화</span>
-        <span class="d">사용자는 복붙하지 않습니다. 반영까지 최대 5분.</span>
-      </div>
-    </div>
-    <p style="margin-top:22px">
-      <a class="btn" href="${NEW_REQUEST_URL}" target="_blank" rel="noopener noreferrer">
-        요청 이슈 열기 ↗</a>
-    </p>
+function nothingYet() {
+  return `<div class="none">
+    <h3>발급 내역 없음</h3>
+    <p>승인된 라이선스가 여기에 쌓입니다.</p>
+    <ol class="steps">
+      <li><b>사용자가 요청</b> <span>— 앱의 [라이선스 요청하기]. 머신 ID 가 채워진 이슈가 열림</span></li>
+      <li><b>승인</b> <span>— 알림 메일에 <code>/approve 30</code> 답장. 끝</span></li>
+      <li><b>앱이 자동 활성화</b> <span>— 복붙 없음. 반영까지 최대 5분</span></li>
+    </ol>
+    <a class="btn" href="${NEW_REQUEST_URL}" target="_blank" rel="noopener noreferrer">요청 이슈 열기</a>
   </div>`;
 }
 
 function renderRows(rows) {
-  const table = $('rosterTable');
-  const tbody = $('rows');
+  const table = $('roster');
+  const empty = $('rosterEmpty');
 
   if (!rows.length) {
     table.hidden = true;
-    $('rosterEmpty').innerHTML = emptyState();
-    $('rosterEmpty').hidden = false;
+    empty.innerHTML = nothingYet();
+    empty.hidden = false;
     return;
   }
 
   table.hidden = false;
-  $('rosterEmpty').hidden = true;
+  empty.hidden = true;
 
-  tbody.innerHTML = sortForDisplay(rows).map((row) => `
-    <tr class="${row.inactive ? 'is-dormant' : ''}">
-      <td data-label="상태"><span class="chips">${statusChip(row)}${autoRenewChip(row)}</span></td>
+  $('rows').innerHTML = sortForDisplay(rows).map((row) => `
+    <tr class="${row.inactive ? 'is-done' : ''}">
+      <td data-label="상태">${state(row)}${autoMark(row)}</td>
       <td data-label="머신 ID"><a class="mid"
           href="detail.html?id=${encodeURIComponent(row.machine_id)}">${esc(row.machine_id)}</a></td>
-      <td data-label="대상">${esc(row.name || '–')}</td>
-      <td data-label="유효기간">${validityRail(row)}</td>
-      <td data-label="만료일"><span class="date">${esc(row.expiresOn)}</span></td>
-      <td data-label="남은" class="num"><span class="left">${row.inactive ? '–' : `${row.daysLeft}일`}</span></td>
+      <td data-label="대상">${esc(row.name || '—')}</td>
+      <td data-label="유효기간">${span(row)}</td>
+      <td data-label="만료"><span class="when">${esc(row.expiresOn)}</span></td>
+      <td data-label="남음" class="r num">${row.inactive ? '—' : `${row.daysLeft}일`}</td>
     </tr>`).join('');
 }
 
 export async function refresh() {
   const btn = $('refresh');
   btn.disabled = true;
-  btn.textContent = '확인 중…';
 
   try {
     const data = await loadAll();
@@ -95,17 +89,18 @@ export async function refresh() {
 
     renderPolicy(data.policy);
     renderRows(rows);
-    renderStats(summarize(rows));
-    $('updated').textContent = new Date().toLocaleString('ko-KR', {
-      dateStyle: 'medium', timeStyle: 'short',
-    });
+    renderTally(summarize(rows));
+    $('updated').textContent = new Date().toLocaleString('ko-KR',
+      { dateStyle: 'medium', timeStyle: 'short' });
+    $('autoNote').textContent = summarize(rows).auto
+      ? `자동 갱신 대상은 만료 ${AUTORENEW_TRIGGER_DAYS}일 전에 연장됨.`
+      : '';
   } catch (err) {
     showError($('rosterEmpty'), err);
     $('rosterEmpty').hidden = false;
-    $('rosterTable').hidden = true;
+    $('roster').hidden = true;
   } finally {
     btn.disabled = false;
-    btn.textContent = '새로고침';
   }
 }
 
