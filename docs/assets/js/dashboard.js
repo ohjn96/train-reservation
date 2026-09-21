@@ -1,18 +1,15 @@
 // 현황 (index.html)
 import { loadAll } from './api.js';
-import { AUTORENEW_TRIGGER_DAYS, NEW_REQUEST_URL } from './config.js';
+import { AUTORENEW_TRIGGER_DAYS, NEW_REQUEST_URL, POLICY_RUN_URL } from './config.js';
 import { describe, describePolicy, sortForDisplay, summarize } from './model.js';
 import { $, autoMark, esc, mountTopbar, showError, span, state } from './ui.js';
 
 mountTopbar('index.html');
 
 const POLICY = {
-  open:     { cls: '',        text: '검사 <b>꺼짐</b> · 누구나 사용 가능',
-              hint: 'license_admin.py policy --mode licensed' },
-  licensed: { cls: 'is-on',   text: '검사 <b>켜짐</b> · 허가된 PC 에서만 동작',
-              hint: 'license_admin.py policy --mode open' },
-  blocked:  { cls: 'is-stop', text: '<b>전면 차단</b> · 라이선스가 있어도 막힘',
-              hint: 'license_admin.py policy --mode open' },
+  open:     { cls: '',        text: '검사 <b>꺼짐</b> · 누구나 사용 가능' },
+  licensed: { cls: 'is-on',   text: '검사 <b>켜짐</b> · 허가된 PC 에서만 동작' },
+  blocked:  { cls: 'is-stop', text: '<b>전면 차단</b> · 라이선스가 있어도 막힘' },
 };
 
 function renderPolicy(policy) {
@@ -24,7 +21,7 @@ function renderPolicy(policy) {
     '<span class="mark"></span>',
     `<span>${shape.text}</span>`,
     view.seq === null ? '' : `<span style="color:var(--ink-3);font-size:12.5px">seq ${view.seq}</span>`,
-    `<span class="hint">${esc(shape.hint)}</span>`,
+    `<a class="hint" href="${POLICY_RUN_URL}" target="_blank" rel="noopener noreferrer">바꾸기 →</a>`,
     view.message ? `<span class="say">${esc(view.message)}</span>` : '',
   ].join('');
 }

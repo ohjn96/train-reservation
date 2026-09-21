@@ -44,10 +44,25 @@
 **기본 상태에서 라이선스 검사는 동작하지 않습니다.** 누구나 앱을 그냥 쓸 수 있습니다.
 검사 기능은 전부 들어가 있고, 원격 스위치 하나로 켭니다.
 
+**원격으로 바꾸는 방법이 두 가지 있습니다.** 로컬 터미널이 필요 없습니다.
+
+1. **Actions 에서 클릭** — [라이선스 검사 켜고 끄기](https://github.com/ohjn96/train-reservation/actions/workflows/license-policy.yml)
+   → Run workflow → 상태 선택. GitHub 모바일 앱에서도 됩니다.
+   현황판의 정책 줄에 있는 **[바꾸기 →]** 가 이 화면으로 연결됩니다.
+2. **이슈 댓글** — 아무 이슈에 `/policy licensed`. 알림 메일 답장도 동일합니다.
+
+```
+/policy open       검사 안 함
+/policy licensed   라이선스 필요
+/policy blocked    전면 차단
+```
+
+로컬에서 하려면:
+
 ```bash
 python scripts/license_admin.py policy            # 현재 상태 보기
 python scripts/license_admin.py policy --mode licensed   # 켜기
-git add license-policy.json && git commit -m "chore: 라이선스 검사 켜기" && git push
+git add license-policy.json && git commit -m "라이선스 검사 켜기" && git push
 ```
 
 | 모드 | 동작 |
@@ -260,6 +275,7 @@ python scripts/license_admin.py autorenew            # 현재 설정 보기
 | `/approve 90` | 90일 발급 (1~3650 범위로 자름) |
 | `/autorenew 30` | 만료 3일 전마다 30일씩 자동 연장 |
 | `/autorenew off` | 자동 갱신 끄기 |
+| `/policy licensed` | 검사 켜기 (open / licensed / blocked). 머신 ID 불필요 |
 | `/revoke` | 그 PC 차단 (`revoked.json` 갱신 + `licenses/` 에서 삭제) |
 | `/deny` | 거절하고 닫기 |
 

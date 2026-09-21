@@ -22,6 +22,7 @@ TRUSTED_ASSOCIATIONS = frozenset({'OWNER', 'MEMBER', 'COLLABORATOR'})
 TRUSTED_DAYS = 90
 COMMAND_RE = re.compile(
     r'^\s*/(approve|deny|revoke|autorenew)\b\s*(\d+|off)?', re.IGNORECASE)
+POLICY_RE = re.compile(r'^\s*/policy\b\s*(open|licensed|blocked)?\s*$', re.IGNORECASE)
 
 MIN_DAYS = 1
 MAX_DAYS = 3650
@@ -32,6 +33,14 @@ def parse_machine_id(issue_body: str) -> str | None:
     """이슈 본문에서 머신 ID 를 찾는다. 형식이 맞는 첫 값만 인정."""
     match = MACHINE_ID_RE.search(issue_body or '')
     return match.group(1).upper() if match else None
+
+
+def parse_policy(comment: str) -> str | None:
+    """'/policy licensed' → 'licensed'. 모드를 안 적으면 None (무시)."""
+    match = POLICY_RE.match(comment or '')
+    if not match or not match.group(1):
+        return None
+    return match.group(1).lower()
 
 
 def parse_command(comment: str) -> tuple[str, int] | None:
@@ -87,6 +96,13 @@ def main() -> int:
     comment = os.environ.get('COMMENT_BODY', '')
     body = os.environ.get('ISSUE_BODY', '')
     association = os.environ.get('AUTHOR_ASSOCIATION', '')
+
+    # /policy 는 머신 ID 가 필요 없다. 먼저 처리한다.
+    if event_name == 'issue_comment':
+        mode = parse_policy(comment)
+        if mode:
+            emit(action='policy', mode=mode)
+            return 0
 
     parsed = decide(event_name, comment, association)
     if parsed is None:

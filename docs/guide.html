@@ -42,15 +42,25 @@
   </ul>
 
   <h2>검사 켜고 끄기</h2>
-  <p>정책 파일은 서명되어야 앱이 받아들임. 브라우저에서는 불가 — 개인키가 필요.</p>
-  <pre><b>python scripts/license_admin.py policy --mode licensed</b>   검사 켜기
-<b>python scripts/license_admin.py policy --mode open</b>       끄기
-<b>python scripts/license_admin.py policy --mode blocked</b>    전면 차단
-<span style="color:var(--ink-3)">git add license-policy.json &amp;&amp; git commit -m "..." &amp;&amp; git push</span></pre>
+  <p>정책 파일은 서명되어야 앱이 받아들임. 개인키가 필요하므로 브라우저에서는 불가.
+     대신 원격으로 두 가지 방법.</p>
+  <ul>
+    <li><b>Actions 에서 클릭</b> — 현황판의 [바꾸기 →] 또는
+        <a href="https://github.com/ohjn96/train-reservation/actions/workflows/license-policy.yml"
+           target="_blank" rel="noopener noreferrer">라이선스 검사 켜고 끄기</a>
+        → Run workflow → 상태 선택. 모바일 앱에서도 가능</li>
+    <li><b>이슈 댓글</b> — 아무 이슈에 <code>/policy licensed</code>.
+        알림 메일 답장으로도 동일</li>
+  </ul>
+  <pre><b>/policy open</b>       검사 안 함 · 누구나 사용
+<b>/policy licensed</b>   라이선스 필요
+<b>/policy blocked</b>    전면 차단</pre>
   <ul>
     <li>앱은 6시간마다, 그리고 로그인할 때마다 확인</li>
     <li>CDN 캐시로 반영까지 최대 5분</li>
   </ul>
+  <p>로컬에서 하려면 <code>python scripts/license_admin.py policy --mode licensed</code>
+     후 <code>license-policy.json</code> 커밋.</p>
 
   <h2>자주 나오는 상황</h2>
   <table>

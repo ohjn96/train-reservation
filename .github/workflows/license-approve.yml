@@ -9,6 +9,7 @@ name: 라이선스 승인
 #   /autorenew off   자동 갱신 끄기
 #   /revoke          이 PC 의 라이선스 차단
 #   /deny            거절하고 닫기
+#   /policy licensed 라이선스 검사 켜기 (open / licensed / blocked)
 #
 # 저장소에 쓰기 권한이 있는 사람(OWNER/MEMBER/COLLABORATOR)이 요청을 올리면
 # 댓글 없이 바로 발급된다. author_association 은 GitHub 이 붙이는 값이라
@@ -43,7 +44,8 @@ jobs:
          (startsWith(github.event.comment.body, '/approve') ||
           startsWith(github.event.comment.body, '/autorenew') ||
           startsWith(github.event.comment.body, '/deny') ||
-          startsWith(github.event.comment.body, '/revoke')))
+          startsWith(github.event.comment.body, '/revoke') ||
+          startsWith(github.event.comment.body, '/policy')))
         ||
         (github.event_name == 'issues' &&
          contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'),
@@ -95,7 +97,10 @@ jobs:
           fi
 
       - name: 서명 개인키 준비
-        if: steps.parse.outputs.action == 'approve' || steps.parse.outputs.action == 'revoke'
+        if: >
+          steps.parse.outputs.action == 'approve' ||
+          steps.parse.outputs.action == 'revoke' ||
+          steps.parse.outputs.action == 'policy'
         env:
           SIGNING_KEY: ${{ secrets.LICENSE_SIGNING_KEY }}
         run: |
@@ -122,6 +127,12 @@ jobs:
             --note "issue#$ISSUE_NUMBER" \
             --publish
 
+      - name: 검사 정책 변경
+        if: steps.parse.outputs.action == 'policy'
+        env:
+          MODE: ${{ steps.parse.outputs.mode }}
+        run: python scripts/license_admin.py policy --mode "$MODE"
+
       - name: 라이선스 철회
         if: steps.parse.outputs.action == 'revoke'
         env:
@@ -139,8 +150,9 @@ jobs:
           git config user.name  'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           # 한 번에 주면 둘 중 하나만 없어도 git 이 통째로 실패하므로 따로 준다
-          if [ -d licenses ];     then git add licenses;     fi
-          if [ -f revoked.json ]; then git add revoked.json; fi
+          if [ -d licenses ];            then git add licenses;            fi
+          if [ -f revoked.json ];        then git add revoked.json;        fi
+          if [ -f license-policy.json ]; then git add license-policy.json; fi
           if git diff --cached --quiet; then
             echo "바뀐 게 없습니다."
             exit 0
@@ -200,6 +212,18 @@ jobs:
           fi
           gh issue comment "$ISSUE_NUMBER" --body "$BODY"
           gh issue close "$ISSUE_NUMBER"
+
+      - name: 정책 변경 결과 알리기
+        if: steps.parse.outputs.action == 'policy'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          MODE: ${{ steps.parse.outputs.mode }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "라이선스 검사를 \`$MODE\` 로 바꿨습니다.
+
+          앱은 6시간마다, 그리고 로그인할 때마다 확인합니다.
+          CDN 캐시 때문에 반영까지 최대 5분 걸립니다."
 
       - name: 거절 처리
         if: steps.parse.outputs.action == 'deny'

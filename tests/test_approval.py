@@ -124,3 +124,34 @@ class AutoRenewSettingsTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class PolicyCommandTest(unittest.TestCase):
+    """/policy — 원격에서 검사 켜고 끄기."""
+
+    @classmethod
+    def setUpClass(cls):
+        import ci_approve
+        cls.mod = ci_approve
+
+    def test_modes(self):
+        for mode in ('open', 'licensed', 'blocked'):
+            self.assertEqual(self.mod.parse_policy(f'/policy {mode}'), mode)
+        self.assertEqual(self.mod.parse_policy('/POLICY Licensed'), 'licensed')
+        self.assertEqual(self.mod.parse_policy('  /policy open  '), 'open')
+
+    def test_mode_is_required(self):
+        """모드를 안 적으면 아무것도 하지 않는다 — 실수로 바꾸는 일이 없게."""
+        self.assertIsNone(self.mod.parse_policy('/policy'))
+
+    def test_unknown_mode_is_ignored(self):
+        for text in ('/policy 뭐', '/policy on', '/policy off', '/policy licensed 30'):
+            self.assertIsNone(self.mod.parse_policy(text), text)
+
+    def test_not_a_policy_command(self):
+        for text in ('', '/approve 30', '정책 바꿔줘', '나중에 /policy open 할게'):
+            self.assertIsNone(self.mod.parse_policy(text), text)
+
+    def test_policy_does_not_collide_with_other_commands(self):
+        """/policy 는 명령 해석기에 걸리지 않아야 한다 (머신 ID 가 필요 없으므로)."""
+        self.assertIsNone(self.mod.parse_command('/policy licensed'))
