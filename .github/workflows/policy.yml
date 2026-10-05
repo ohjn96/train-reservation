@@ -1,0 +1,109 @@
+name: 라이선스 검사 켜고 끄기
+
+# Actions 탭 → Run workflow 로 원격 정책을 바꾼다 (휴대폰 GitHub 앱에서도 가능).
+# 서명 개인키는 이 저장소의 LICENSE_SIGNING_KEY 시크릿에 있다. 서명 코드는
+# 앱 소스 저장소(private_train)의 licensing 패키지를 그대로 쓴다.
+# 저장소에 쓰기 권한이 있는 사람만 실행할 수 있다.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '검사 상태'
+        type: choice
+        required: true
+        default: 'on'
+        options:
+          - 'on'       # 전체 ON — 검사 안 함. 누구나 사용 (open)
+          - allow      # 허용한 것만 — 라이선스 받은 PC 만 (licensed)
+          - 'off'      # 전체 OFF — 전면 차단 (blocked)
+      message:
+        description: '차단 화면에 띄울 안내 (off 일 때만 의미 있음)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: license-write
+  cancel-in-progress: false
+
+jobs:
+  set:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 서명 코드 가져오기 (private_train)
+        uses: actions/checkout@v4
+        with:
+          repository: ohjn96/private_train
+          ref: feat/license-control
+          path: src
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 의존성 설치
+        run: pip install --quiet pycryptodome==3.20.0
+
+      - name: 서명 개인키 준비
+        env:
+          SIGNING_KEY: ${{ secrets.LICENSE_SIGNING_KEY }}
+        run: |
+          if [ -z "$SIGNING_KEY" ]; then
+            echo "::error::LICENSE_SIGNING_KEY 시크릿이 없습니다."
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/admin"
+          printf '%s\n' "$SIGNING_KEY" > "$RUNNER_TEMP/admin/license_signing_key.pem"
+          chmod 600 "$RUNNER_TEMP/admin/license_signing_key.pem"
+
+      - name: 정책 서명
+        env:
+          MODE: ${{ inputs.mode }}
+          MESSAGE: ${{ inputs.message }}
+          LICENSE_ADMIN_DIR: ${{ runner.temp }}/admin
+          LICENSE_DIST_DIR: ${{ github.workspace }}
+        run: python src/scripts/license_admin.py policy --mode "$MODE" --message "$MESSAGE"
+
+      - name: 앱의 공개키로 검증 (키가 짝이 맞는지)
+        working-directory: src
+        run: |
+          python - <<'PY'
+          import json
+          from licensing.public_key import PUBLIC_KEY_PEM
+          from licensing.token import load_public_key, parse
+          token = json.load(open('../license-policy.json'))['token']
+          print('검증 통과:', parse(token, load_public_key(PUBLIC_KEY_PEM)).data)
+          PY
+
+      - name: 개인키 지우기
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/admin"
+
+      - name: 커밋 & 푸시
+        env:
+          MODE: ${{ inputs.mode }}
+        run: |
+          git config user.name  'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add license-policy.json
+          if git diff --cached --quiet; then
+            echo "바뀐 게 없습니다."
+            exit 0
+          fi
+          git commit -m "라이선스 검사: $MODE"
+          git push
+
+      - name: 요약
+        env:
+          MODE: ${{ inputs.mode }}
+        run: |
+          {
+            echo "### 라이선스 검사 → \`$MODE\`"
+            echo ""
+            echo "- 앱은 로그인할 때마다, 그리고 6시간마다 확인"
+            echo "- CDN 캐시로 반영까지 최대 5분"
+          } >> "$GITHUB_STEP_SUMMARY"
